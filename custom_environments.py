@@ -4,12 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-from utils import plot_single_pendulum
+
+
 
 class PendulumEnvironment(Environment):
 
-    def __init__(self, dt = 0.1, num_actuations = 1, max_episode_timesteps = 200):
+    def __init__(self, dt = 0.1, num_actuations = 1, max_episode_timesteps = 200,
+        init_position_range = [np.pi-1, np.pi+1],
+        init_velocity_range = [-1, 1]):
+
         super().__init__()
+        self.init_position_range = init_position_range
+        self.init_velocity_range = init_velocity_range
 
         # position, velocity in radians
         self.reset() #sets self.time_step = 0, and initial conditions (random)
@@ -25,17 +31,19 @@ class PendulumEnvironment(Environment):
         return dict(type = "float", shape = (2,))
 
     def actions(self):
-        return dict(type = "float", shape = (1,),
-            min_value = -1.0, max_value = 1.0)
+        return dict(type = "int", num_values = 3)
 
     def max_episode_timesteps(self):
         return self.max_episode_timesteps_value
 
     def reset(self):
         self.time_step = 0
+        low_pos, high_pos = self.init_position_range[0], self.init_position_range[1]
+        low_vel, high_vel = self.init_velocity_range[0], self.init_velocity_range[1]
 
-        init_pos = np.random.uniform(low = -np.pi, high = np.pi, size = 1)[0]
-        init_vel = np.random.uniform(low = -np.pi/2, high = np.pi/2, size = 1)[0]
+        init_pos = np.random.uniform(low = low_pos, high = high_pos, size = 1)[0]
+        init_vel = np.random.uniform(low = low_vel, high = high_vel, size = 1)[0]
+
         self.state = np.array([init_pos, init_vel])
 
         self.rewards = [self.get_reward()]
@@ -49,10 +57,9 @@ class PendulumEnvironment(Environment):
 
         tmp_state = self.state
 
-        action = actions[0]
+        action = actions-1
         for _ in range(self.num_actuations):
             pos, vel = tmp_state[0], tmp_state[1]
-
 
             acc = -g*np.sin(pos) + 0.8*g*action
             vel += acc*self.dt
@@ -103,12 +110,34 @@ class PendulumEnvironment(Environment):
 
 
 
+def plot_single_pendulum(thetas, dt, rewards = None):
 
+    x =  np.sin(thetas)
+    y = -np.cos(thetas)
 
+    fig = plt.figure()
+    ax = fig.add_subplot(111, autoscale_on = False, xlim=(-2, 2), ylim=(-2, 2))
+    ax.set_aspect('equal')
+    ax.grid()
 
+    line, = ax.plot([], 'o-', lw=2)
+    time_template = 'time = %.1fs, reward = %.3f'
+    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
 
+    def init():
+        line.set_data([], [])
+        time_text.set_text('')
+        return line, time_text
 
+    def animate(i):
+        xx = [0, x[i]]
+        yy = [0, y[i]]
 
+        line.set_data(xx, yy)
+        time_text.set_text(time_template  % (i*dt, rewards[i]))
 
-if __name__ == '__main__':
-    env = PendulumEnvironment()
+        return line, time_text
+
+    ani = animation.FuncAnimation(fig, animate, range(1, len(y)),
+                                  interval=dt*1000, blit=True, init_func=init)
+    return ani

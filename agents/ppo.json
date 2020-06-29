@@ -23,7 +23,7 @@
     },
 
     "entropy_regularization": 0.01,
-    "parallel_interactions": 5
+    "parallel_interactions": 1
 
 
 
