@@ -16,6 +16,3 @@ num_episodes_visualize = int(sys.argv[2])
 for _ in range(num_episodes_visualize):
     runner.run(num_episodes = 1)
     env.plot()
-
-    s = pd.Series(env.actions_list)
-    print(s.describe())
