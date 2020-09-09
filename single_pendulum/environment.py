@@ -1,6 +1,7 @@
 from tensorforce.environments import Environment
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -11,7 +12,7 @@ class SinglePendulumBase(Environment):
     continous and discrete action space
     """
 
-    def __init__(self, dt = 0.1, num_actuations = 1, max_episode_timesteps = 200,
+    def __init__(self, dt = 0.1, num_actuations = 5, max_episode_timesteps = 200,
         init_position_range = [-np.pi, np.pi],
         init_velocity_range = [-1, 1],
         pendulum_force = 0.5):
@@ -23,8 +24,10 @@ class SinglePendulumBase(Environment):
         # position, velocity in radians
         self.reset() #sets self.time_step = 0, and initial conditions (random)
 
-        self.thetas = [self.state[0]]
+        self.thetas = list()
         self.actions_list = list()
+        self.theta_dots = list()
+
         self.dt = dt
         self.num_actuations = num_actuations
         self.max_episode_timesteps_value = max_episode_timesteps
@@ -45,6 +48,8 @@ class SinglePendulumBase(Environment):
         g = 9.8
 
         tmp_state = self.state
+        self.thetas.append(tmp_state[0])
+        self.theta_dots.append(tmp_state[1])
 
         for _ in range(self.num_actuations):
             pos, vel = tmp_state[0], tmp_state[1]
@@ -60,7 +65,6 @@ class SinglePendulumBase(Environment):
         new_state = tmp_state
 
         self.state = new_state
-        self.thetas.append(pos)
         self.actions_list.append(action)
 
         #calculate reward given new position
@@ -82,8 +86,11 @@ class SinglePendulumBase(Environment):
         init_vel = np.random.uniform(low = low_vel, high = high_vel, size = 1)[0]
 
         self.state = np.array([init_pos, init_vel])
+        self.thetas = list()
+        self.actions_list = list()
+        self.theta_dots = list()
 
-        self.rewards = [self.get_reward()]
+        self.rewards = []
 
         return self.state
 
@@ -110,6 +117,25 @@ class SinglePendulumBase(Environment):
             writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
             anim.save(filename, writer = writer)
 
+    def save_data_to_csv(self, path):
+        df = pd.DataFrame()
+        df["actions"] = self.actions_list
+        df["thetas"] = self.thetas
+        df["theta_dots"] = self.theta_dots
+        df["rewards"] = self.rewards
+
+        df.to_csv(path, index = False)
+
+    def get_run_data(self):
+        data = dict()
+        data["num_episodes"] = self.max_episode_timesteps_value
+        data["pendulum_force"] = self.pendulum_force
+        data["dt"] = self.dt
+        data["num_actuations"] = self.num_actuations
+
+        return data
+
+
 
 class SinglePendulumDiscrete(SinglePendulumBase):
 
@@ -123,11 +149,11 @@ class SinglePendulumDiscrete(SinglePendulumBase):
 class SinglePendulumContinous(SinglePendulumBase):
 
     def actions(self):
-        return dict(type = "float", shape = (1,))
+        return dict(type = "float", shape = (1), min_value = -1.0,
+            max_value = 1.0)
 
     def execute(self, actions):
-        action = actions[0] - 1
-        return self.apply_action(action)
+        return self.apply_action(actions[0])
 
 
 def plot_single_pendulum(thetas, dt, rewards = None):

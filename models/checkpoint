@@ -1,2 +1,0 @@
-model_checkpoint_path: "dueling_dqn_agent_double"
-all_model_checkpoint_paths: "dueling_dqn_agent_double"
