@@ -4,12 +4,13 @@ import os
 import datetime
 import numpy as np
 import json
+import sys
 
 from utils.save_utils import get_new_folder
 
 start_time = datetime.datetime.now()
 
-num_episodes = 0
+num_episodes = int(sys.argv[1])
 agent_path = "agents/ppo.json"
 agent_savename = "ppo"
 
