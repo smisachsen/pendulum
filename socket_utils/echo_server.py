@@ -1,5 +1,6 @@
 from __future__ import print_function
 import pickle
+import os
 
 
 class EchoServer(object):
@@ -26,38 +27,44 @@ class EchoServer(object):
             'REWARD',
             # Is the solver done? value 0 1, empty fail
             'TERMINAL',
+
+            "SIMULATION FINISHED"
             )
 
         self.verbose = verbose
 
     @staticmethod
     def decode_message(msg, verbose=1):
-        msg = pickle.loads(msg)
+        if len(msg) > 0:
+            msg = pickle.loads(msg)
 
-        assert(isinstance(msg, (list,)))
-        assert(len(msg) == 2)
+            assert(isinstance(msg, (list,)))
+            assert(len(msg) == 2)
 
-        request = msg[0]
-        data = msg[1]
+            request = msg[0]
+            data = msg[1]
 
-        if verbose > 1:
-            print("decode message --------------")
-            print(" request:")
-            print(request)
-            print(" data:")
-            print(data)
-            print("-----------------------------")
+            if False:
+                print("decode message --------------")
+                print(" request:")
+                print(request)
+                print(" data:")
+                print(data)
+                print("-----------------------------")
+        else:
+            request = "SIMULATION_FINISHED"
+            data = 1
 
         return request, data
 
     @staticmethod
-    def encode_message(request, data, verbose=0):
+    def encode_message(request, data, verbose=2):
         '''Encode data (a list) as message'''
 
         complete_message = [request, data]
         msg = pickle.dumps(complete_message)
 
-        if verbose > 1:
+        if False:
             print("encode message --------------")
             print(" request:")
             print(request)
@@ -69,7 +76,7 @@ class EchoServer(object):
     def handle_message(self, msg):
         '''Trigger action base on client message.'''
 
-        request, data = EchoServer.decode_message(msg, verbose=self.verbose)
+        request, data = EchoServer.decode_message(msg, verbose=2)
 
         if request not in self.supported_requests:
             RuntimeError("unknown request; no support for {}".format(request))

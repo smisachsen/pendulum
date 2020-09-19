@@ -1,100 +1,112 @@
+import socket
+
+from multiprocessing import Process
+from tensorforce import Runner, Agent
 from single_pendulum.environment import SinglePendulumContinous
-from tensorforce import Agent, Runner
+
+from socket_utils.socket_server import Server
+from socket_utils.socket_env import Client
+from socket_utils.utils import *
+from utils.save_utils import *
+import time
 import os
-import datetime
-import numpy as np
-import json
-import sys
 import argparse
 
-from utils.save_utils import get_new_folder
-
-start_time = datetime.datetime.now()
+import tensorflow as tf
+tf.get_logger().setLevel('ERROR')
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--num_episodes", type = int, required = True)
-parser.add_argument("--num_parallel", type = int, required = True)
+parser.add_argument("--num-episodes", type = int, required = True)
+parser.add_argument("--num-parallel", type = int, required = True)
 
 args = parser.parse_args()
 
 num_episodes = args.num_episodes
 num_parallel = args.num_parallel
 
-network = network = [dict(type='dense', size=512), dict(type='dense', size=512)]
+if __name__ == '__main__':
+    try:
+        savefolder = "saver_data"
+        agent_name = "ppo_agent"
 
-env = SinglePendulumContinous(pendulum_force = 0.1)
-agent = Agent.create(
-    agent = "ppo",
-    environment = env,
-
-    network= network,
-    update_frequency = 20,
-    batch_size = 20,
-    learning_rate = 0.001,
-    discount = 0.999,
-
-    critic_network=network,
-    critic_optimizer=dict(
-        type='multi_step', num_steps=5,
-        optimizer=dict(type='adam', learning_rate=1e-3)
-    ),
-
-    entropy_regularization=0.01,
-    parallel_interactions=num_parallel
-)
+        num_servers = num_parallel
+        port_start = 7010
+        ports = range(port_start, port_start + num_servers)
+        host = socket.gethostname()
 
 
 
-#agent_path = "agents/ppo.json"
-agent_savename = "ppo"
-foldername = "single_pendulum_results"
-new_folder_path = get_new_folder(foldername)
+        #launch servers
+        processes = list()
+        for i, port in enumerate(ports):
+            verbose = i==0
+            env = SinglePendulumContinous()
+            proc = Process(target=launch_server, args = (host, port, verbose, env))
+            proc.start()
+            processes.append(proc)
+            time.sleep(1)
 
+        print(f"started {len(processes)} servers")
 
-#agent = Agent.create(agent = agent_path, environment = env)
+        envs = []
+        example_env = SinglePendulumContinous()
+        for i, port in enumerate(ports):
+            client = Client(environment=example_env, port=port, host=host, verbose = i==0)
+            envs.append(client)
 
-if num_parallel > 1:
-    envs = [SinglePendulumContinous(pendulum_force = 0.1) for _ in range(num_parallel)]
-    runner = Runner(agent=agent, environments=envs, num_parallel=num_parallel)
-    runner.run(num_episodes = num_episodes)
-else:
-    runner = Runner(agent=agent, environment=env)
-    runner.run(num_episodes = num_episodes)
+        print("setup clients DONE")
 
+        try:
+            agent = Agent.load(directory=savefolder, filename=agent_name, environment=example_env)
+            print(f"loaded {agent_name} agent from {savefolder}")
+        except:
+            print("failed to load agent. Setting manually")
 
-agent.parallel_interactions = 1
-env = env if num_parallel == 1 else envs[0]
-eval_runner = Runner(agent=agent, environment=env)
-eval_runner.run(num_episodes=1, evaluation = True)
+            network = [dict(type='dense', size=512), dict(type='dense', size=512)]
+            agent = Agent.create(
+                # Agent + Environment
+                agent='ppo', environment=example_env,
+                #max_episode_timesteps=nb_actuations,
+                # TODO: nb_actuations could be specified by Environment.max_episode_timesteps() if it makes sense...
+                # Network
+                network=network,
+                # Optimization
+                batch_size=20, learning_rate=1e-3, subsampling_fraction=0.2, optimization_steps=25,
+                # Reward estimation
+                likelihood_ratio_clipping=0.2, estimate_terminal=True,  # ???
+                # TODO: gae_lambda=0.97 doesn't currently exist
+                # Critic
+                critic_network=network,
+                critic_optimizer=dict(
+                    type='multi_step', num_steps=5,
+                    optimizer=dict(type='adam', learning_rate=1e-3)
+                ),
+                # Regularization
+                entropy_regularization=0.01,
+                # TensorFlow etc
+                parallel_interactions=num_servers
+                )
 
+        print("setup agent DONE")
 
+        runner = Runner(agent = agent, environments=envs, num_parallel = num_servers)
+        print("setup runner DONE")
 
-end_time = datetime.datetime.now()
+        try:
+            runner.run(num_episodes = num_episodes, sync_episodes=True, save_best_agent=True)
+        except:
+            print("exception")
+            runner.close()
 
+        for env in envs:
+            env.socket.close()
 
+    except:
+        pass
 
-run_info_txt_path = os.path.join(new_folder_path, "run_info.txt")
-results_csv_path = os.path.join(new_folder_path, "results.csv")
-run_config_json_path = os.path.join(new_folder_path, "run_parameters.json")
-agent_savefolder = os.path.join(new_folder_path, "tensorforce_agent")
+    finally:
+        #save agent
 
-#save basic run info
-with open(run_info_txt_path, "w") as file:
-    file.write(f"start time: {start_time} \n")
-    file.write(f"end time: {end_time} \n")
-    file.write(f"total runtime: {end_time - start_time} \n")
-
-#save results
-env.save_data_to_csv(results_csv_path)
-
-#save run info
-with open(agent_path, "r") as f:
-  data = json.load(f)
-
-for key, val in env.get_run_data().items():
-    data[key] = val
-
-with open(run_config_json_path, "w") as file:
-    json.dump(data, file)
-
-agent.save(directory = agent_savefolder, filename = agent_savename)
+        create_folder_if_not_exists(savefolder)
+        agent.save(directory=savefolder, filename = agent_name)
+        print(f"saved agent to {savefolder}")
