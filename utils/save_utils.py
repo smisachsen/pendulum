@@ -16,10 +16,3 @@ def get_new_folder(path):
     os.mkdir(new_folder_path)
 
     return new_folder_path
-
-
-if __name__ == '__main__':
-    foldername = "testfolder/"
-    new_folder_path = get_new_folder(foldername)
-
-    print(new_folder_path)
