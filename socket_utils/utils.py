@@ -1,4 +1,4 @@
-from socket_util.socket_server import Server
+from socket_utils.socket_server import Server
 
 def check_free_port(host, port, verbose=True):
     """Check if a given port is available."""
