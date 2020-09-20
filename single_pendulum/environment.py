@@ -140,17 +140,17 @@ class SinglePendulumBase(Environment):
 class SinglePendulumDiscrete(SinglePendulumBase):
 
     def actions(self):
-        return dict(type = "int", num_values = 3)
+        return dict(type = "int", num_values = 5)
 
     def execute(self, actions):
-        action = actions-1
+        action = actions-2
         return self.apply_action(action)
 
 class SinglePendulumContinous(SinglePendulumBase):
 
     def actions(self):
-        return dict(type = "float", shape = (1), min_value = -1.0,
-            max_value = 1.0)
+        return dict(type = "float", shape = (1), min_value = -2.0,
+            max_value = 2.0)
 
     def execute(self, actions):
         return self.apply_action(actions[0])
