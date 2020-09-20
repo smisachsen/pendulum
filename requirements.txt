@@ -1,2 +1,3 @@
 Tensorforce==0.5.5
 tensorflow==2.2.0
+gym
