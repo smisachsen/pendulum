@@ -49,18 +49,28 @@ except:
         learning_rate=1e-3,
         memory = 10_000,
         discount = 0.999,
-        exploration = 0.2
+        exploration=dict(
+            type='decaying', unit='episodes', decay='exponential',
+            initial_value=0.9, decay_steps=1000, decay_rate=0.5 
         )
+    )
+
+
 
 print("setup agent DONE")
 
-runner = Runner(agent = agent, environment=env)
-runner.run(num_episodes = num_episodes)
+try:
+    runner = Runner(agent = agent, environment=env)
+    runner.run(num_episodes = num_episodes)
+    env.plot()
 
 
+    create_folder_if_not_exists(savefolder)
+    create_folder_if_not_exists(savefolder_agent)
 
-create_folder_if_not_exists(savefolder)
-create_folder_if_not_exists(savefolder_agent)
+except KeyboardInterrupt:
+    print("Quiting program")
 
-agent.save(directory=savefolder_agent, filename = agent_name)
-print(f"saved agent to {savefolder}")
+finally:
+    agent.save(directory=savefolder_agent, filename = agent_name)
+    print(f"saved agent to {savefolder}")

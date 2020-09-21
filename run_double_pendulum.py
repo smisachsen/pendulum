@@ -11,12 +11,11 @@ tf.get_logger().setLevel('ERROR')
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--num-episodes", type = int, required = True)
-parser.add_argument("--num-timesteps", type = int, required = True)
 
 args = parser.parse_args()
 
 num_episodes = args.num_episodes
-num_timesteps = args.num_timesteps
+
 
 
 env = CartPoleEnv()
@@ -47,8 +46,6 @@ agent = Agent.create(
     parallel_interactions=1
     )
 
-num_episodes = 200
-num_timesteps = 200
 
 episode_rewards = []
 episode_states = []
@@ -58,7 +55,10 @@ for ep in range(num_episodes):
     ep_rew = list()
     ep_states = list()
     states = env.reset()
-    for _ in range(num_timesteps):
+    done = False
+    ts_counter = 0
+    while not done:
+        ts_counter += 1
         actions = agent.act(states)
         states, reward, done, _ = env.step(actions)
         agent.observe(reward)
@@ -66,6 +66,6 @@ for ep in range(num_episodes):
         ep_rew.append(reward)
         ep_states.append(states)
 
-    print(f"episode: {ep} mean reward: {np.mean(ep_rew)}")
+    print(f"episode: {ep} mean reward: {np.mean(ep_rew)}. Lasted {ts_counter} rounds before termination")
     episode_rewards.append(ep_rew)
     episode_states.append(ep_states)
